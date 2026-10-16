@@ -8,10 +8,11 @@
  */
 import axios from 'axios';
 import { toast } from '../components/ui/sonner';
+import { API_BASE_URL } from '../config/apiConfig';
 
 // Create base Axios instance
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

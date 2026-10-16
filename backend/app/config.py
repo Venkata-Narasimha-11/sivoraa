@@ -61,7 +61,13 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
-        """Construct the database connection string."""
+        """Construct the database connection string, supporting Render PostgreSQL and SQLite."""
+        import os
+        env_url = os.environ.get("DATABASE_URL")
+        if env_url:
+            if env_url.startswith("postgres://"):
+                env_url = env_url.replace("postgres://", "postgresql://", 1)
+            return env_url
         if self.USE_SQLITE_FALLBACK:
             return f"sqlite:///{BASE_DIR / self.SQLITE_DB_PATH}"
         return (

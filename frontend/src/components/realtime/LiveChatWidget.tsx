@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Radio, User, ShieldCheck } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useAuth } from '../../hooks/useAuth';
+import { WS_BASE_URL } from '../../config/apiConfig';
 
 export interface ChatMessage {
   id: string;
@@ -28,7 +29,7 @@ export const LiveChatWidget: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Use a shared support room for Customer <-> Admin live communication
-  const wsBase = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000/ws';
+  const wsBase = WS_BASE_URL;
   const chatRoomId = 'general_support';
   const wsUrl = `${wsBase}/chat/${chatRoomId}`;
 

@@ -4,6 +4,7 @@ import { Bell, CheckCheck, PackageCheck, AlertTriangle, X, Tag, Sparkles, Trash2
 import { toast } from 'sonner';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useAuth } from '../../hooks/useAuth';
+import { WS_BASE_URL } from '../../config/apiConfig';
 
 export interface NotificationItem {
   id: string;
@@ -101,7 +102,7 @@ export const NotificationBell: React.FC = () => {
   }, [isOpen]);
 
   // Connect to appropriate WebSocket channel based on user role
-  const wsBase = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000/ws';
+  const wsBase = WS_BASE_URL;
   const wsUrl = isAdmin ? `${wsBase}/admin` : user ? `${wsBase}/orders/${user.id || 1}` : null;
 
   const { isConnected, lastMessage } = useWebSocket(wsUrl, {

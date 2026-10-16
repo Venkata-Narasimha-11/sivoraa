@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { ApiError } from '../types/api';
+import { API_BASE_URL } from '../config/apiConfig';
 
 /**
  * Type-Safe Axios HTTP Client.
@@ -8,7 +9,7 @@ import { ApiError } from '../types/api';
 class ApiClient {
   private client: AxiosInstance;
 
-  constructor(baseURL: string = '/api/v1') {
+  constructor(baseURL: string = API_BASE_URL) {
     this.client = axios.create({
       baseURL,
       timeout: 10000,

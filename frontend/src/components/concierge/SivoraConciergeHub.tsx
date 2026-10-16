@@ -18,6 +18,7 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import useAuthStore from '../../stores/useAuthStore';
 import useCartStore from '../../stores/useCartStore';
 import { toast } from 'sonner';
+import { API_BASE_URL, WS_BASE_URL } from '../../config/apiConfig';
 
 interface ProductCitation {
   id: number;
@@ -101,7 +102,7 @@ export const SivoraConciergeHub: React.FC = () => {
     },
   ]);
 
-  const wsBase = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000/ws';
+  const wsBase = WS_BASE_URL;
   const chatRoomId = 'general_support';
   const wsUrl = `${wsBase}/chat/${chatRoomId}`;
 
@@ -206,7 +207,7 @@ export const SivoraConciergeHub: React.FC = () => {
         .filter((m) => m.id !== 'ai-welcome')
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+      const apiBase = API_BASE_URL;
       const response = await fetch(`${apiBase}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

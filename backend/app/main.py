@@ -63,10 +63,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # GZip Response Compression Middleware (Compresses responses >= 1000 bytes)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# CORS Middleware
+# CORS Middleware: allow local dev origins + all production/preview *.vercel.app subdomains
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

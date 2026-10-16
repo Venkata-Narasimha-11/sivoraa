@@ -1,0 +1,26 @@
+services:
+  # Backend Web Service on Render
+  - type: web
+    name: sivoraa-backend
+    env: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: USE_SQLITE_FALLBACK
+        value: "true"
+      - key: SQLITE_DB_PATH
+        value: ecommerce.db
+      - key: SECRET_KEY
+        generateValue: true
+      - key: BACKEND_CORS_ORIGINS
+        value: "http://localhost:5173,http://localhost:3000"

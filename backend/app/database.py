@@ -5,14 +5,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from app.config import settings
 
-# Engine configuration with appropriate connection arguments
-connect_args = {"check_same_thread": False} if settings.USE_SQLITE_FALLBACK else {}
+# Determine if the active database is SQLite or PostgreSQL
+is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+connect_args = {"check_same_thread": False} if is_sqlite else {}
 
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args=connect_args,
-    pool_size=settings.DB_POOL_SIZE if not settings.USE_SQLITE_FALLBACK else 5,
-    max_overflow=settings.DB_MAX_OVERFLOW if not settings.USE_SQLITE_FALLBACK else 10,
+    pool_size=5 if is_sqlite else settings.DB_POOL_SIZE,
+    max_overflow=10 if is_sqlite else settings.DB_MAX_OVERFLOW,
     pool_pre_ping=True,
     echo=settings.DEBUG,
 )

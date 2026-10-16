@@ -5,6 +5,7 @@ import useAuthStore from '../../stores/useAuthStore';
 import useCartStore from '../../stores/useCartStore';
 import { toast } from 'sonner';
 import { AIErrorBoundary } from './AIErrorBoundary';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 interface ProductCitation {
   id: number;
@@ -88,7 +89,7 @@ export const AIChatWidget: React.FC = () => {
         .filter((m) => m.id !== 'welcome')
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const response = await fetch('http://127.0.0.1:8000/api/v1/chat/stream', {
+      const response = await fetch(`${API_BASE_URL}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
