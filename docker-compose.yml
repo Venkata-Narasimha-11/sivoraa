@@ -1,0 +1,209 @@
+version: "3.9"
+
+# ==============================================================================
+# SIVORA AI E-Commerce - Day 23 Full-Stack Docker Compose Orchestration
+# Services: FastAPI, PostgreSQL, Redis, Celery Worker, Celery Beat, React/Nginx
+# Features: Service Healthchecks, Isolated Bridge Network, Named Persistent Volumes
+# Single Command Launch: docker compose up --build -d
+# ==============================================================================
+
+services:
+  # -------------------------------------------------------------
+  # 1. PostgreSQL 16 Database
+  # -------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: sivora_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
+      POSTGRES_DB: ${POSTGRES_DB:-ecommerce_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sivora_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ecommerce_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # -------------------------------------------------------------
+  # 2. Redis 7 Cache & Celery Broker
+  # -------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: sivora_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sivora_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # -------------------------------------------------------------
+  # 3. FastAPI Core Backend Server
+  # -------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sivora_backend
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=False
+      - USE_SQLITE_FALLBACK=False
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER:-postgres}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-password123}
+      - DB_NAME=${POSTGRES_DB:-ecommerce_db}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - SECRET_KEY=${SECRET_KEY:-sivora-enterprise-jwt-super-secret-key-32chars}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - AI_FALLBACK_ORDER=groq,gemini,mock
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+      - chroma_data:/app/chroma_db
+    networks:
+      - sivora_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # -------------------------------------------------------------
+  # 4. Celery Background Worker
+  # -------------------------------------------------------------
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sivora_celery_worker
+    restart: unless-stopped
+    command: ["celery", "-A", "app.services.celery_app.celery_app", "worker", "--loglevel=info", "-c", "2"]
+    environment:
+      - ENVIRONMENT=production
+      - USE_SQLITE_FALLBACK=False
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER:-postgres}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-password123}
+      - DB_NAME=${POSTGRES_DB:-ecommerce_db}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - SECRET_KEY=${SECRET_KEY:-sivora-enterprise-jwt-super-secret-key-32chars}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+      - chroma_data:/app/chroma_db
+    networks:
+      - sivora_network
+
+  # -------------------------------------------------------------
+  # 5. Celery Beat Periodic Scheduler (Day 23 DevOps Spec)
+  # -------------------------------------------------------------
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sivora_celery_beat
+    restart: unless-stopped
+    command: ["celery", "-A", "app.services.celery_app.celery_app", "beat", "--loglevel=info", "-s", "/app/celery/celerybeat-schedule"]
+    environment:
+      - ENVIRONMENT=production
+      - USE_SQLITE_FALLBACK=False
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER:-postgres}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-password123}
+      - DB_NAME=${POSTGRES_DB:-ecommerce_db}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - SECRET_KEY=${SECRET_KEY:-sivora-enterprise-jwt-super-secret-key-32chars}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - celery_data:/app/celery
+    networks:
+      - sivora_network
+
+  # -------------------------------------------------------------
+  # 6. React Frontend (Vite + Nginx Reverse Proxy)
+  # -------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sivora_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - sivora_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+# -------------------------------------------------------------
+# Persistent Named Volumes (Preserve data across container restarts)
+# -------------------------------------------------------------
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  chroma_data:
+    driver: local
+  celery_data:
+    driver: local
+
+# -------------------------------------------------------------
+# Isolated Bridge Network (Enables secure inter-service DNS resolution)
+# -------------------------------------------------------------
+networks:
+  sivora_network:
+    driver: bridge
+    name: sivora_network
