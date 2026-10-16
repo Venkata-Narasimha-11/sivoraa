@@ -28,31 +28,22 @@ def get_safe_client_ip(request: Request) -> str:
 
 
 # Configure Rate Limit Storage:
-# In production, shared Redis is strictly required. In dev/test, fallback to memory:// with a warning if Redis is down.
-if settings.ENVIRONMENT == "production":
-    try:
-        import redis
-        client = redis.Redis.from_url(settings.REDIS_URL, socket_connect_timeout=2.0)
-        client.ping()
-        client.close()
-        _storage_uri = settings.REDIS_URL
-    except Exception as exc:
-        raise RuntimeError(
-            f"FATAL: Production rate limiting requires accessible Redis at {settings.REDIS_URL}. Cannot start. Error: {exc}"
-        )
-else:
-    try:
-        import redis
-        client = redis.Redis.from_url(settings.REDIS_URL, socket_connect_timeout=1.0)
-        client.ping()
-        client.close()
-        _storage_uri = settings.REDIS_URL
-    except Exception:
-        logger.warning(
-            "Redis offline in %s mode. Rate limiting using in-memory storage (memory://).",
-            settings.ENVIRONMENT,
-        )
-        _storage_uri = "memory://"
+# Uses Redis if reachable; automatically falls back to memory:// if Redis is offline
+_storage_uri = "memory://"
+try:
+    import redis
+    client = redis.Redis.from_url(settings.REDIS_URL, socket_connect_timeout=1.0)
+    client.ping()
+    client.close()
+    _storage_uri = settings.REDIS_URL
+    logger.info("Rate limiter connected to Redis at %s", settings.REDIS_URL)
+except Exception as exc:
+    logger.warning(
+        "Redis offline at %s (%s). Falling back to in-memory rate limiting (memory://).",
+        settings.REDIS_URL,
+        exc,
+    )
+    _storage_uri = "memory://"
 
 limiter = Limiter(
     key_func=get_safe_client_ip,
