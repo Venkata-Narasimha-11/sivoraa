@@ -69,7 +69,16 @@ class Settings(BaseSettings):
                 env_url = env_url.replace("postgres://", "postgresql://", 1)
             return env_url
         if self.USE_SQLITE_FALLBACK:
-            return f"sqlite:///{BASE_DIR / self.SQLITE_DB_PATH}"
+            import tempfile
+            db_path = BASE_DIR / self.SQLITE_DB_PATH
+            try:
+                # Verify write permission on parent directory
+                test_file = BASE_DIR / ".db_write_test"
+                test_file.touch()
+                test_file.unlink()
+            except Exception:
+                db_path = Path(tempfile.gettempdir()) / self.SQLITE_DB_PATH
+            return f"sqlite:///{db_path}"
         return (
             f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"

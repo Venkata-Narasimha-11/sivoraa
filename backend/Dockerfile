@@ -55,7 +55,7 @@ COPY --chown=appuser:appgroup . /app
 
 # Ensure directories for runtime volumes exist with proper user ownership
 RUN mkdir -p /app/uploads/invoices /app/uploads/imports /app/chroma_db /app/celery && \
-    chown -R appuser:appgroup /app/uploads /app/chroma_db /app/celery
+    chown -R appuser:appgroup /app
 
 # Switch to non-root user
 USER appuser
