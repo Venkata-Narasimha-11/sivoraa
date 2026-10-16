@@ -1207,12 +1207,13 @@ def refresh_catalog():
 
         # 5. Insert SIVORA Products
         print(f"\nSeeding {len(SIVORA_PRODUCTS)} SIVORA Luxury Products (15 per category)...")
-        for pdata in SIVORA_PRODUCTS:
-            cat_slug = pdata.pop("category_slug")
-            cat_id = cat_map[cat_slug]
+        for p in SIVORA_PRODUCTS:
+            pdata = dict(p)
+            cat_slug = pdata.pop("category_slug", "ethnic-couture")
+            cat_id = cat_map.get(cat_slug, list(cat_map.values())[0] if cat_map else 1)
             prod = Product(
                 category_id=cat_id,
-                thumbnail_url=pdata["image_url"],
+                thumbnail_url=pdata.get("image_url", ""),
                 is_active=True,
                 **pdata
             )
