@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, Trash2, ArrowLeft, ArrowRight, Package, Sparkles } from 'lucide-react';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuth } from '../hooks/useAuth';
-import { Button } from '../components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/Button';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
 
 export const WishlistPage = () => {
   const { wishlist, removeFromWishlist, moveToCart } = useWishlist();

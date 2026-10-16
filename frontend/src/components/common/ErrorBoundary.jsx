@@ -1,7 +1,7 @@
 import React from "react";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
-import { Button } from "../ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card";
+import { Button } from "../ui/Button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/Card";
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {

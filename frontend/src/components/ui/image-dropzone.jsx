@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { UploadCloud, Image as ImageIcon, X, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { Button } from "./button";
+import { Button } from "./Button";
 
 export function ImageDropzone({
   value,
