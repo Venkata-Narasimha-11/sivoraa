@@ -44,20 +44,30 @@ class RAGService:
     def get_collection(cls):
         if cls._collection is None:
             client = cls.get_client()
-            # Default embedding function uses lightweight ONNX/MiniLM
-            try:
-                emb_fn = embedding_functions.DefaultEmbeddingFunction()
-                cls._collection = client.get_or_create_collection(
-                    name="products_catalog",
-                    embedding_function=emb_fn,
-                    metadata={"hnsw:space": "cosine"}
-                )
-            except Exception as e:
-                logger.error(f"Error creating ChromaDB collection with default embedding function: {e}")
-                cls._collection = client.get_or_create_collection(
-                    name="products_catalog",
-                    metadata={"hnsw:space": "cosine"}
-                )
+            import os
+            # On 512MB RAM server, skip downloading 400MB ONNX model
+            if settings.ENVIRONMENT == "production" or os.environ.get("DISABLE_ONNX_EMBEDDINGS") == "true":
+                try:
+                    cls._collection = client.get_or_create_collection(
+                        name="products_catalog",
+                        metadata={"hnsw:space": "cosine"}
+                    )
+                except Exception as e:
+                    logger.warning(f"ChromaDB collection fallback: {e}")
+            else:
+                try:
+                    emb_fn = embedding_functions.DefaultEmbeddingFunction()
+                    cls._collection = client.get_or_create_collection(
+                        name="products_catalog",
+                        embedding_function=emb_fn,
+                        metadata={"hnsw:space": "cosine"}
+                    )
+                except Exception as e:
+                    logger.error(f"Error creating ChromaDB collection with default embedding function: {e}")
+                    cls._collection = client.get_or_create_collection(
+                        name="products_catalog",
+                        metadata={"hnsw:space": "cosine"}
+                    )
         return cls._collection
 
     @classmethod

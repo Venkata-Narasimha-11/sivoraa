@@ -1223,15 +1223,21 @@ def refresh_catalog():
         # 6. Re-index ChromaDB Vector Store
         print("\nRefreshing ChromaDB Semantic Vector Database...")
         try:
-            client = RAGService.get_client()
-            try:
-                client.delete_collection("products_catalog")
-                print("  - Cleared old ChromaDB 'products_catalog' collection.")
-            except Exception:
-                pass
-            RAGService._collection = None
-            indexed_count = RAGService.index_all_products(db)
-            print(f"  + Re-indexed {indexed_count} SIVORA luxury products in ChromaDB!")
+            import os
+            # Render Free Tier has a 512MB RAM cap. ONNX neural embeddings consume 400MB+ causing OOM.
+            # Skip heavy embedding generation in production to keep memory under 150MB.
+            if os.environ.get("SKIP_CHROMA_SEED") == "true" or settings.ENVIRONMENT == "production":
+                print("  + Skipped heavy ChromaDB neural indexing in production to respect 512MB RAM quota.")
+            else:
+                client = RAGService.get_client()
+                try:
+                    client.delete_collection("products_catalog")
+                    print("  - Cleared old ChromaDB 'products_catalog' collection.")
+                except Exception:
+                    pass
+                RAGService._collection = None
+                indexed_count = RAGService.index_all_products(db)
+                print(f"  + Re-indexed {indexed_count} SIVORA luxury products in ChromaDB!")
         except Exception as e:
             print(f"  ! ChromaDB indexing notice: {e}")
 
