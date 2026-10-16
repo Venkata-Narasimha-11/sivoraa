@@ -1,20 +1,13 @@
 """AI Agents & Tool Calling Service.
-
-Implements autonomous AI agent patterns with tool/function calling for:
-1. check_product_stock(product_name_or_id)
-2. lookup_product_price(product_name_or_id)
-3. apply_coupon_calculator(coupon_code, order_amount)
-4. check_order_status(order_id)
-5. search_catalog(query, max_price)
-
-Supports multi-turn tool calling with Groq/Gemini and deterministic local intent execution.
 """
+
+from __future__ import annotations
 
 import json
 import logging
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.config import settings
