@@ -41,14 +41,14 @@ async def lifespan(app: FastAPI):
     # Ensure uploads directory exists
     settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Auto-seed catalog if database is fresh/empty
+    # Auto-seed catalog if database is fresh/empty or has incomplete catalog (< 360 products)
     try:
         from app.database import SessionLocal
         from app.models.product import Product
         with SessionLocal() as db:
-            if db.query(Product).count() == 0:
-                from scripts.seed_sivora_fashion import refresh_catalog
-                refresh_catalog()
+            if db.query(Product).count() < 360:
+                from scripts.seed_limeroad_catalog import seed_database
+                seed_database()
     except Exception as exc:
         print(f"Auto-seed catalog notice: {exc}")
 
@@ -130,13 +130,15 @@ def health_check():
 
 @app.api_route("/api/v1/seed", methods=["GET", "POST"], tags=["Admin"])
 def seed_catalog_endpoint():
-    """Populates the database with SIVORA luxury fashion products and categories."""
+    """Populates the database with full 360 SIVORA luxury apparel products across Women, Men, Girls, and Boys."""
     try:
-        from scripts.seed_sivora_fashion import refresh_catalog
-        refresh_catalog()
+        from scripts.seed_limeroad_catalog import seed_database
+        total = seed_database()
         return {
             "status": "success",
-            "message": "SIVORA luxury catalog successfully populated with 360+ products, categories, and demo accounts!",
+            "message": f"SIVORA luxury catalog successfully populated with {total} products across Women, Men, Girls, and Boys!",
+            "total_products": total,
         }
     except Exception as exc:
         return {"status": "error", "message": str(exc)}
+

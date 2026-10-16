@@ -172,14 +172,24 @@ def list_products(
             cat_slug = 'men'
         elif cat_slug in ('boys-kids-wear', 'boys'):
             cat_slug = 'boys'
-        cat_obj = db.query(Category).filter(
-            or_(
-                Category.slug == cat_slug,
-                Category.name.ilike(cat_slug),
-            )
-        ).first()
-        if cat_obj:
-            query = query.filter(Product.category_id == cat_obj.id)
+        elif cat_slug in ('girls-kids-wear', 'girls'):
+            cat_slug = 'girls'
+        elif cat_slug == 'footwear':
+            query = query.filter(Product.description.ilike("%Subcategory: FOOTWEAR%"))
+            cat_slug = None
+        elif cat_slug in ('luxury-handbags', 'fine-jewellery', 'beauty-fragrances'):
+            query = query.filter(Product.description.ilike("%Subcategory: ACCESSORIES%"))
+            cat_slug = None
+
+        if cat_slug:
+            cat_obj = db.query(Category).filter(
+                or_(
+                    Category.slug == cat_slug,
+                    Category.name.ilike(cat_slug),
+                )
+            ).first()
+            if cat_obj:
+                query = query.filter(Product.category_id == cat_obj.id)
 
     if subcategory:
         sub_term = subcategory.strip()

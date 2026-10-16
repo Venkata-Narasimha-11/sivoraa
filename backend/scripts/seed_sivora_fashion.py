@@ -8,8 +8,7 @@ from decimal import Decimal
 from app.database import Base, SessionLocal, engine
 from app.models import Category, Product, User, UserRole, Order, OrderItem, ChatMessage
 from app.utils.auth import get_password_hash
-from app.services.rag_service import RAGService
-from app.services.ai_cache_service import AICacheService
+
 
 
 SIVORA_CATEGORIES = [
@@ -1170,102 +1169,12 @@ SIVORA_PRODUCTS = [
 ]
 
 
-def refresh_catalog():
-    print("=" * 60)
-    print("REMOVING ALL OLD PRODUCTS & RE-SEEDING SIVORA LUXURY CATALOG")
-    print("8 CATEGORIES x 15 PRODUCTS = 120 TOTAL LUXURY PRODUCTS")
-    print("=" * 60)
-
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-
-    try:
-        # 1. Clear existing orders and chat messages that reference old products
-        print("Clearing order items, orders, and chat messages...")
-        db.query(OrderItem).delete()
-        db.query(Order).delete()
-        db.query(ChatMessage).delete()
-
-        # 2. Clear old products & old categories
-        print("Deleting old products and categories...")
-        db.query(Product).delete()
-        db.query(Category).delete()
-        db.commit()
-
-
-
-        # 4. Insert SIVORA Categories
-        print("\nCreating SIVORA Luxury Categories...")
-        cat_map = {}
-        for cdata in SIVORA_CATEGORIES:
-            cat = Category(**cdata)
-            db.add(cat)
-            db.commit()
-            db.refresh(cat)
-            cat_map[cdata["slug"]] = cat.id
-            print(f"  + Category: {cat.name} ({cat.slug})")
-
-        # 5. Insert SIVORA Products
-        print(f"\nSeeding {len(SIVORA_PRODUCTS)} SIVORA Luxury Products (15 per category)...")
-        for p in SIVORA_PRODUCTS:
-            pdata = dict(p)
-            cat_slug = pdata.pop("category_slug", "ethnic-couture")
-            cat_id = cat_map.get(cat_slug, list(cat_map.values())[0] if cat_map else 1)
-            prod = Product(
-                category_id=cat_id,
-                thumbnail_url=pdata.get("image_url", ""),
-                is_active=True,
-                **pdata
-            )
-            db.add(prod)
-        db.commit()
-        print("All 120 Products successfully inserted into database.")
-
-        # 6. Re-index ChromaDB Vector Store
-        print("\nRefreshing ChromaDB Semantic Vector Database...")
-        try:
-            import os
-            # Render Free Tier has a 512MB RAM cap. ONNX neural embeddings consume 400MB+ causing OOM.
-            # Skip heavy embedding generation in production to keep memory under 150MB.
-            if os.environ.get("SKIP_CHROMA_SEED") == "true" or settings.ENVIRONMENT == "production":
-                print("  + Skipped heavy ChromaDB neural indexing in production to respect 512MB RAM quota.")
-            else:
-                client = RAGService.get_client()
-                try:
-                    client.delete_collection("products_catalog")
-                    print("  - Cleared old ChromaDB 'products_catalog' collection.")
-                except Exception:
-                    pass
-                RAGService._collection = None
-                indexed_count = RAGService.index_all_products(db)
-                print(f"  + Re-indexed {indexed_count} SIVORA luxury products in ChromaDB!")
-        except Exception as e:
-            print(f"  ! ChromaDB indexing notice: {e}")
-
-        # 7. Clear Redis AI Cache
-        print("\nFlushing Redis AI Query Cache...")
-        try:
-            from app.services.redis_service import CacheService
-            CacheService.delete_pattern("categories:*")
-            CacheService.delete_pattern("products:*")
-            CacheService.delete_pattern("ai:*")
-            print("  + Redis cache cleared.")
-        except Exception as e:
-            print(f"  ! Redis cache notice: {e}")
-
-        print("\n" + "=" * 60)
-        print("SUCCESS: SIVORA Luxury Fashion Catalog Refresh Complete!")
-        print(f"Total Categories: {len(SIVORA_CATEGORIES)}")
-        print(f"Total Products:   {len(SIVORA_PRODUCTS)}")
-        print("=" * 60)
-
-    except Exception as exc:
-        db.rollback()
-        print(f"ERROR refreshing catalog: {exc}")
-        raise
-    finally:
-        db.close()
+def refresh_catalog() -> int:
+    """Delegates to seed_limeroad_catalog to populate all 360 apparel products."""
+    from scripts.seed_limeroad_catalog import seed_database
+    return seed_database()
 
 
 if __name__ == "__main__":
     refresh_catalog()
+

@@ -1,13 +1,22 @@
 """
 Seed the Limeroad-Style 4 Categories (Women, Men, Girls, Boys)
-with 10 distinct, high-quality apparel products per subcategory.
+with 10 distinct, high-quality apparel products per subcategory (Total 360 products).
 """
 
 import sys
 import os
 import re
+from pathlib import Path
 from decimal import Decimal
-import psycopg2
+
+# Ensure backend root is on sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from app.database import Base, SessionLocal, engine
+from app.models import Category, Product, User, UserRole, Order, OrderItem, ChatMessage
+from app.utils.auth import get_password_hash
+from app.config import settings
+
 
 def slugify(text: str) -> str:
     text = text.lower().strip()
@@ -460,62 +469,138 @@ BOYS_DATA = {
     ],
 }
 
-def seed_database():
-    conn = psycopg2.connect("postgresql://postgres:@127.0.0.1:5432/ecommerce_db")
-    cur = conn.cursor()
+def seed_database() -> int:
+    """Seed all 360 Limeroad fashion products across Women, Men, Girls, Boys using SQLAlchemy."""
+    print("=" * 60)
+    print("SEEDING FULL 360 SIVORA APPAREL PRODUCTS (Women, Men, Girls, Boys)")
+    print("=" * 60)
 
-    print("Cleaning up old products...")
-    cur.execute("DELETE FROM products;")
-    cur.execute("DELETE FROM categories;")
-    conn.commit()
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
 
-    categories_to_create = [
-        ("Women", "women", "Luxury & Ethnic Couture for Women"),
-        ("Men", "men", "Streetwear & Sartorial Atelier for Men"),
-        ("Girls", "girls", "Chic & Royal Celebration Wear for Girls"),
-        ("Boys", "boys", "Smart Casuals & Sartorial Sets for Boys"),
-    ]
+    try:
+        # 1. Clear existing orders, order items, chat messages that reference old products
+        print("Clearing order items, orders, and chat messages...")
+        db.query(OrderItem).delete()
+        db.query(Order).delete()
+        db.query(ChatMessage).delete()
 
-    cat_map = {}
-    for name, slug, desc in categories_to_create:
-        cur.execute(
-            "INSERT INTO categories (name, slug, description, created_at) VALUES (%s, %s, %s, NOW()) RETURNING id;",
-            (name, slug, desc),
-        )
-        cat_id = cur.fetchone()[0]
-        cat_map[name] = cat_id
-        print(f"Created category {name} with ID {cat_id}")
-    conn.commit()
+        # 2. Clear old products & old categories
+        print("Deleting old products and categories...")
+        db.query(Product).delete()
+        db.query(Category).delete()
+        db.commit()
 
-    total_inserted = 0
+        # 3. Create or ensure demo users
+        print("Ensuring demo users (Admin & Customer)...")
+        admin = db.query(User).filter(User.username == "admin").first()
+        if not admin:
+            admin = User(
+                username="admin",
+                email="admin@sivora.com",
+                full_name="SIVORA Admin",
+                hashed_password=get_password_hash("admin123"),
+                role=UserRole.ADMIN,
+                is_active=True,
+            )
+            db.add(admin)
+        customer = db.query(User).filter(User.username == "customer").first()
+        if not customer:
+            customer = User(
+                username="customer",
+                email="customer@sivora.com",
+                full_name="SIVORA Customer",
+                hashed_password=get_password_hash("customer123"),
+                role=UserRole.CUSTOMER,
+                is_active=True,
+            )
+            db.add(customer)
+        db.commit()
 
-    all_groups = [
-        ("Men", MEN_DATA),
-        ("Women", WOMEN_DATA),
-        ("Girls", GIRLS_DATA),
-        ("Boys", BOYS_DATA),
-    ]
+        # 4. Insert 4 Main Categories
+        categories_to_create = [
+            ("Women", "women", "Handcrafted Banarasi sarees, ethnic sets, evening gowns, chikankari kurtas, designer crop tops, and co-ord sets."),
+            ("Men", "men", "Heavyweight oversized tees, French linen shirts, Japanese denim jeans, tailored trousers, and royal sherwanis."),
+            ("Girls", "girls", "Chic twin sets, fairytale lehengas, party frocks, ruffle tops, warm winterwear, and glitter footwear."),
+            ("Boys", "boys", "Printed resort shirts, graphic tees, twin sets, royal sherwanis, utility cargo pants, and retro sneakers."),
+        ]
 
-    for cat_name, subcat_dict in all_groups:
-        cat_id = cat_map[cat_name]
-        for subcat, items in subcat_dict.items():
-            for idx, (p_name, price, img) in enumerate(items, 1):
-                slug = slugify(f"{cat_name}-{subcat}-{p_name}-{idx}")
-                description = f"Subcategory: {subcat} | {cat_name} premium collection. High quality authentic fabric, tailored craftsmanship, comfortable fit and luxury finish."
-                stock = 50 + (idx * 5)
-                cur.execute(
-                    """
-                    INSERT INTO products (name, slug, description, price, stock, category_id, image_url, thumbnail_url, is_active, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, TRUE, NOW(), NOW());
-                    """,
-                    (p_name, slug, description, Decimal(price), stock, cat_id, img, img),
-                )
-                total_inserted += 1
-            print(f"  Inserted {len(items)} products for {cat_name} -> {subcat}")
+        cat_map = {}
+        for name, slug, desc in categories_to_create:
+            cat = Category(name=name, slug=slug, description=desc)
+            db.add(cat)
+            db.commit()
+            db.refresh(cat)
+            cat_map[name] = cat.id
+            print(f"  + Category: {name} (ID: {cat.id}, Slug: {slug})")
 
-    conn.commit()
-    print(f"\nSuccessfully seeded {total_inserted} products across all categories and subcategories!")
-    conn.close()
+        # 5. Insert all 360 Products (10 per subcategory)
+        all_groups = [
+            ("Women", WOMEN_DATA),
+            ("Men", MEN_DATA),
+            ("Girls", GIRLS_DATA),
+            ("Boys", BOYS_DATA),
+        ]
+
+        total_inserted = 0
+        for cat_name, subcat_dict in all_groups:
+            cat_id = cat_map[cat_name]
+            for subcat, items in subcat_dict.items():
+                for idx, (p_name, price, img) in enumerate(items, 1):
+                    slug = slugify(f"{cat_name}-{subcat}-{p_name}-{idx}")
+                    description = f"Subcategory: {subcat} | {cat_name} premium collection. High quality authentic fabric, tailored craftsmanship, comfortable fit and luxury finish."
+                    stock = 50 + (idx * 5)
+                    prod = Product(
+                        name=p_name,
+                        slug=slug,
+                        description=description,
+                        price=Decimal(str(price)),
+                        stock=stock,
+                        category_id=cat_id,
+                        image_url=img,
+                        thumbnail_url=img,
+                        is_active=True,
+                    )
+                    db.add(prod)
+                    total_inserted += 1
+                db.commit()
+                print(f"  Inserted {len(items)} products for {cat_name} -> {subcat}")
+
+        print(f"\nAll {total_inserted} products successfully inserted into database.")
+
+        # 6. Skip heavy ChromaDB vector indexing in production to avoid Render 512MB RAM OOM crash
+        try:
+            if os.environ.get("SKIP_CHROMA_SEED") == "true" or settings.ENVIRONMENT == "production":
+                print("  + Skipped heavy ChromaDB neural indexing in production to respect 512MB RAM quota.")
+            else:
+                from app.services.rag_service import RAGService
+                RAGService.index_all_products(db)
+        except Exception as e:
+            print(f"  ! ChromaDB indexing notice: {e}")
+
+        # 7. Redis Cache flush
+        try:
+            from app.services.redis_service import CacheService
+            CacheService.invalidate_pattern("categories:*")
+            CacheService.invalidate_pattern("products:*")
+            CacheService.invalidate_pattern("ai:*")
+            print("  + Redis cache cleared.")
+        except Exception as e:
+            print(f"  ! Redis cache notice: {e}")
+
+        print("=" * 60)
+        print(f"SUCCESS: Seeded {total_inserted} Products across 4 Categories!")
+        print("=" * 60)
+        return total_inserted
+
+    except Exception as exc:
+        db.rollback()
+        print(f"ERROR seeding catalog: {exc}")
+        raise
+    finally:
+        db.close()
+
 
 if __name__ == "__main__":
     seed_database()
+
