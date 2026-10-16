@@ -105,6 +105,7 @@ def root():
     return {
         "project": settings.PROJECT_NAME,
         "version": settings.VERSION,
+        "database_url": settings.DATABASE_URL,
         "docs": "/docs",
         "health": "/health",
     }
