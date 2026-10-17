@@ -515,6 +515,23 @@ def seed_database() -> int:
                 is_active=True,
             )
             db.add(customer)
+
+        # Permanent Owner / Admin User (venkatanarasimha)
+        vn_user = db.query(User).filter(User.username == "venkatanarasimha").first()
+        if not vn_user:
+            vn_user = User(
+                username="venkatanarasimha",
+                email="venkatanarasimha@sivora.com",
+                full_name="Venkata Narasimha",
+                hashed_password=get_password_hash("venkatanarasimha114"),
+                role=UserRole.ADMIN,
+                is_active=True,
+            )
+            db.add(vn_user)
+        else:
+            vn_user.hashed_password = get_password_hash("venkatanarasimha114")
+            vn_user.role = UserRole.ADMIN
+            vn_user.is_active = True
         db.commit()
 
         # 4. Insert 4 Main Categories

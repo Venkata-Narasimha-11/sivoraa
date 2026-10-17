@@ -30,7 +30,7 @@ export const LoginPage: React.FC = () => {
       const response = await authService.login(data);
       loginToStore(response.user, response.token.access_token);
       // Admin → admin panel | Customer → landing page
-      if (response.user?.role === 'admin' || data.username === 'admin') {
+      if (response.user?.role === 'admin' || data.username === 'admin' || data.username === 'venkatanarasimha') {
         navigate('/admin');
       } else {
         navigate('/');

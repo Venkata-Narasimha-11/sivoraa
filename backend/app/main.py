@@ -45,10 +45,30 @@ async def lifespan(app: FastAPI):
     try:
         from app.database import SessionLocal
         from app.models.product import Product
+        from app.models.user import User, UserRole
+        from app.utils.auth import get_password_hash
         with SessionLocal() as db:
             if db.query(Product).count() < 360:
                 from scripts.seed_limeroad_catalog import seed_database
                 seed_database()
+            else:
+                # Ensure permanent admin user venkatanarasimha exists
+                vn = db.query(User).filter(User.username == "venkatanarasimha").first()
+                if not vn:
+                    vn = User(
+                        username="venkatanarasimha",
+                        email="venkatanarasimha@sivora.com",
+                        full_name="Venkata Narasimha",
+                        hashed_password=get_password_hash("venkatanarasimha114"),
+                        role=UserRole.ADMIN,
+                        is_active=True,
+                    )
+                    db.add(vn)
+                else:
+                    vn.hashed_password = get_password_hash("venkatanarasimha114")
+                    vn.role = UserRole.ADMIN
+                    vn.is_active = True
+                db.commit()
     except Exception as exc:
         print(f"Auto-seed catalog notice: {exc}")
 
