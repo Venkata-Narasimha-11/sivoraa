@@ -68,6 +68,24 @@ async def lifespan(app: FastAPI):
                     vn.hashed_password = get_password_hash("venkatanarasimha114")
                     vn.role = UserRole.ADMIN
                     vn.is_active = True
+
+                # Ensure permanent customer user sivasankar exists
+                siva = db.query(User).filter(User.username == "sivasankar").first()
+                if not siva:
+                    siva = User(
+                        username="sivasankar",
+                        email="sivasankar@sivora.com",
+                        full_name="Siva Sankar",
+                        hashed_password=get_password_hash("sivasankar114"),
+                        role=UserRole.CUSTOMER,
+                        is_active=True,
+                    )
+                    db.add(siva)
+                else:
+                    siva.hashed_password = get_password_hash("sivasankar114")
+                    siva.role = UserRole.CUSTOMER
+                    siva.is_active = True
+
                 db.commit()
     except Exception as exc:
         print(f"Auto-seed catalog notice: {exc}")
